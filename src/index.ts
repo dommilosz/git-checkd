@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 
-import simpleGit, {SimpleGit, SimpleGitOptions} from "simple-git";
+import simpleGit, {CheckRepoActions, SimpleGit, SimpleGitOptions} from "simple-git";
 import * as fs from "fs";
 import clc from "cli-color";
+import * as Path from "path";
 
 main();
 
 type DirectoryType = {
     name: string,
     path: string,
+    location:string,
     checked?: boolean,
     clean?: boolean,
     synced?: boolean,
@@ -20,44 +22,78 @@ type DirectoryType = {
     ahead?: number,
 }
 
-async function main() {
-    let args = process.argv;
-    let path = ".";
-    let maxConcurrent = 16;
-    let onlyUnclean = true;
-    if (args.indexOf("-p") >= 0) {
-        path = args[args.indexOf("-p") + 1] ?? '.';
-    }
-    if (args.indexOf("-c") >= 0) {
-        maxConcurrent = Number(args[args.indexOf("-p") + 1] ?? 16);
-        if(!isFinite(maxConcurrent))maxConcurrent = 16;
-    }
-    if (args.indexOf("-a") >= 0) {
-        onlyUnclean = false;
-    }
-
-    console.log(clc.cyan("Directories:"));
-
-    let directories = readDirectories(path);
-    printResultsDetails(directories,undefined,undefined,onlyUnclean);
-    await checkDirs(directories,maxConcurrent,onlyUnclean);
+type OptionsType = {
+    onlyUnclean: boolean,
+    useGitFetch: boolean,
+    useGitStatus: boolean,
+    path: string,
+    maxConcurrent: number,
+    recursive:boolean,
+    maxDepth:number,
+    noColor:boolean,
 }
 
-async function checkDirs(directories: DirectoryType[], maxAsync: number, onlyUnclean:boolean) {
+async function main() {
+    let args = process.argv;
+    let options: OptionsType = {
+        maxConcurrent: 4,
+        path: ".",
+        onlyUnclean: true,
+        useGitFetch: true,
+        useGitStatus: true,
+        recursive:false,
+        maxDepth:4,
+        noColor:false,
+    };
+    if (args.indexOf("-p") >= 0) {
+        options.path = args[args.indexOf("-p") + 1] ?? '.';
+    }
+    if (args.indexOf("-c") >= 0) {
+        options.maxConcurrent = Number(args[args.indexOf("-p") + 1] ?? 4);
+        if (!isFinite(options.maxConcurrent)) options.maxConcurrent = 4;
+    }
+    if (args.indexOf("-a") >= 0) {
+        options.onlyUnclean = false;
+    }
+    if (args.indexOf("--no-fetch") >= 0) {
+        options.useGitFetch = false;
+    }
+    if (args.indexOf("--no-color") >= 0) {
+        options.noColor = true;
+    }
+    if (args.indexOf("-l") >= 0) {
+        options.useGitFetch = false;
+        options.useGitStatus = false;
+    }
+    if (args.indexOf("-r") >= 0) {
+        options.recursive = true;
+    }
+    if (args.indexOf("--max-depth") >= 0) {
+        options.maxDepth = Number(args[args.indexOf("--max-depth") + 1] ?? 4);
+        if (!isFinite(options.maxDepth)) options.maxDepth = 4;
+    }
+
+    let directories = readDirectories(options);
+    console.log(textColor("cyan",options)("Found candidates:")+textColor("yellow",options)(directories.length));
+    printResultsDetails(directories, options);
+    await checkDirs(directories, options);
+}
+
+async function checkDirs(directories: DirectoryType[], options: OptionsType) {
     let totalChecked = 0;
     let startTime = +new Date();
 
-    async function dirTask(i:number){
-        directories[i] = await checkDir(directories[i]);
-        printResultsDetails(directories, directories[i], directories[i - 1],onlyUnclean);
+    async function dirTask(i: number) {
+        directories[i] = await checkDir(directories[i],options);
+        printResultsDetails(directories, options, directories[i], directories[i - 1]);
         totalChecked++;
     }
 
     let asyncTasks = [];
     for (let i = 0; i < directories.length; i++) {
-        if(asyncTasks.length<maxAsync){
+        if (asyncTasks.length < (options.maxConcurrent)) {
             asyncTasks.push(dirTask(i));
-        }else{
+        } else {
             await asyncTasks.pop();
             asyncTasks.push(dirTask(i));
         }
@@ -66,27 +102,50 @@ async function checkDirs(directories: DirectoryType[], maxAsync: number, onlyUnc
     for (const task of asyncTasks) {
         await task;
     }
-    
-    console.log(clc.cyan("Total checked: ")+clc.yellow(totalChecked));
-    console.log(clc.cyan("Time taken: ")+clc.yellow(((+new Date() - startTime)/1000)+"s"));
+
+    console.log(`${textColor("cyan",options)('Synced repositories:')} ${textColor("yellow",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
+       if(dir.clean && dir.synced) return prev+1;
+       return prev;
+    },0))}`);
+
+    console.log(`${textColor("cyan",options)('Unsynced repositories:')} ${textColor("yellow",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
+        if(dir.clean && !dir.synced) return prev+1;
+        return prev;
+    },0))}`);
+
+    console.log(`${textColor("cyan",options)('Unclean repositories:')} ${textColor("yellow",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
+        if(!dir.clean && dir.isGit) return prev+1;
+        return prev;
+    },0))}`);
+
+    console.log(`${textColor("cyan",options)('Error repositories:')} ${textColor("yellow",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
+        if(!dir.error) return prev+1;
+        return prev;
+    },0))}`);
+
+    console.log(textColor("cyan",options)("Total checked: ") + textColor("yellow",options)(totalChecked));
+    console.log(textColor("cyan",options)("Time taken: ") + textColor("yellow",options)(((+new Date() - startTime) / 1000) + "s"));
 }
 
-async function checkDir(dir: DirectoryType): Promise<DirectoryType> {
-    const options: Partial<SimpleGitOptions> = {
+async function checkDir(dir: DirectoryType, options: OptionsType): Promise<DirectoryType> {
+    const gitOptions: Partial<SimpleGitOptions> = {
         baseDir: dir.path,
         maxConcurrentProcesses: 1,
         trimmed: false,
     };
     try {
-        const git: SimpleGit = simpleGit(options);
-        if (await git.checkIsRepo()) {
+        const git: SimpleGit = simpleGit(gitOptions);
+        if (await git.checkIsRepo(CheckRepoActions.IS_REPO_ROOT)) {
             dir.isGit = true;
-            let fetchResult = await git.fetch();
-            let statusResult = await git.status();
-            dir.clean = statusResult.isClean();
-            dir.synced = statusResult.ahead <= 0 || statusResult.behind <= 0;
-            dir.behind = statusResult.behind;
-            dir.ahead = statusResult.ahead;
+            if (options.useGitFetch)
+                await git.fetch();
+            if (options.useGitStatus){
+                let statusResult = await git.status();
+                dir.clean = statusResult.isClean();
+                dir.synced = statusResult.ahead <= 0 || statusResult.behind <= 0;
+                dir.behind = statusResult.behind;
+                dir.ahead = statusResult.ahead;
+            }
         } else {
             dir.isGit = false;
         }
@@ -98,51 +157,83 @@ async function checkDir(dir: DirectoryType): Promise<DirectoryType> {
     return dir;
 }
 
-function readDirectories(path: string): DirectoryType[] {
+function _readDirectories(path:string,depthLeft:number):DirectoryType[]{
+    depthLeft--;
     let files = fs.readdirSync(path, {withFileTypes: true});
-    let directories = files.filter((file) => {
-        return file.isDirectory();
-    })
-    return directories.map((dir) => {
-        return {name: dir.name, status: "unchecked", path: path + "/" + dir.name};
+    let directories:DirectoryType[] = files.filter((file) => {
+        return file.isDirectory() && file.name !== '.git'
+    }).map((dir) => {
+        return {name: dir.name, status: "unchecked", path: Path.join(path,dir.name),location:path};
     });
+    let newDirectories:DirectoryType[] = [];
+    if(depthLeft>0){
+        for (const dir of directories) {
+            newDirectories.push(..._readDirectories(dir.path,depthLeft-1));
+        }
+    }
+    directories.push(...newDirectories);
+    directories = directories.filter(dir=>{
+        //console.log(Path.join(dir.path,".git"));
+        return fs.existsSync(Path.join(dir.path,".git"));
+    })
+    return directories;
 }
 
-function printResultsDetails(directories: DirectoryType[], checking?: DirectoryType, prev?: DirectoryType, onlyUnclean?:boolean) {
+function readDirectories(options: OptionsType): DirectoryType[] {
+    return _readDirectories(options.path, options.recursive ? options.maxDepth : 1);
+}
+
+function printResultsDetails(directories: DirectoryType[], options: OptionsType, checking?: DirectoryType, prev?: DirectoryType) {
     directories.forEach(dir => {
         if (dir.checked && !dir.seen) {
-            let color = getStatusColor(dir);
-            let checked = directories.reduce((prev,dir)=>{
-                if(dir.checked)return prev+1;
-                return prev;
-            },0);
-            let progressText = clc.green(`[${checked}/${directories.length}]`)
-
-            if(onlyUnclean && (!dir.isGit || (dir.clean && dir.synced))){
-
-            } else if (!dir.isGit) {
-                console.log(`${progressText} ${clc.blue(dir.name)} - ${color(getStatus(dir))}: isGit:${dir.isGit}`);
-            } else if (dir.error) {
-                console.log(`${progressText} ${clc.blue(dir.name)} - ${color(getStatus(dir))}: isGit:${dir.isGit}, Error: ${dir.errorMsg}`);
-            } else if ((dir.behind ?? 0 > 0) || (dir.ahead ?? 0 > 0)) {
-                console.log(`${progressText} ${clc.blue(dir.name)} - ${color(getStatus(dir))}: isGit:${dir.isGit}, Clean: ${dir.clean}, Ahead: ${dir.ahead ?? 0}, Behind: ${dir.behind ?? 0}`);
-            } else {
-                console.log(`${progressText} ${clc.blue(dir.name)} - ${color(getStatus(dir))}: isGit:${dir.isGit}, Clean: ${dir.clean}, Synced: ${dir.synced}`);
+            let repoTxt = formatRepo(dir,options);
+            if(repoTxt !== undefined){
+                let checked = directories.reduce((prev, dir) => {
+                    if (dir.checked) return prev + 1;
+                    return prev;
+                }, 0);
+                let progressText = textColor("green",options)(`[${checked}/${directories.length}]`)
+                console.log(`${progressText} ${repoTxt}`);
             }
             dir.seen = true;
         }
     })
-
-
 }
 
-function getStatusColor(dir: DirectoryType) {
-    if (!dir.checked) return clc.blue;
-    if (!dir.isGit) return clc.black;
-    if (dir.error) return clc.red;
-    if (dir.synced && dir.clean) return clc.green;
-    if (dir.clean) return clc.cyan;
-    return clc.yellow;
+function formatRepo(dir: DirectoryType,options:OptionsType){
+    let base = textColor("blackBright",options)(Path.join(dir.location,"/")) + textColor("blue",options)(dir.name);
+    let status = getStatusColor(dir,options)(getStatus(dir));
+
+    let props:{prop:string,value?:any}[] = []
+
+    if(options.onlyUnclean && (!dir.isGit || (dir.clean && dir.synced)))return undefined;
+
+    if(dir.error){
+        props.push({prop:"Error",value:dir.errorMsg});
+    }else{
+        if(!dir.isGit){
+            props.push({prop:"isGit",value:dir.isGit});
+        }else {
+            if((dir.behind ?? 0 > 0) || (dir.ahead ?? 0 > 0)){
+                props.push({prop:"Ahead",value:dir.ahead});
+                props.push({prop:"Behind",value:dir.behind});
+            }
+            props.push({prop:"Clean",value:dir.clean});
+            props.push({prop:"Synced",value:dir.synced});
+        }
+    }
+    let propsTxt = props.filter(el=>el.value !== undefined).map(el=>`${textColor("greenBright",options)(el.prop)}: ${textColor("magenta",options)(el.value)}`).join(" ");
+
+    return `${base} - ${status}: ${propsTxt}`
+}
+
+function getStatusColor(dir: DirectoryType,options:OptionsType) {
+    if (!dir.checked) return textColor("blue",options);
+    if (!dir.isGit) return textColor("black",options);
+    if (dir.error) return textColor("red",options);
+    if (dir.synced && dir.clean) return textColor("green",options);
+    if (dir.clean) return textColor("cyan",options);
+    return textColor("yellow",options);
 }
 
 function getStatus(dir: DirectoryType) {
@@ -151,4 +242,12 @@ function getStatus(dir: DirectoryType) {
     if (dir.synced && dir.clean) return "Repository is Synced";
     if (dir.clean) return "Repository tree is clean";
     return "Repository tree is not clean"
+}
+
+function textColor(color:any,options:OptionsType){
+    if(options.noColor){
+        return (t:any)=>t;
+    }
+    // @ts-ignore
+    return clc[color];
 }
