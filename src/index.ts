@@ -74,7 +74,7 @@ async function main() {
     }
 
     let directories = readDirectories(options);
-    console.log(textColor("cyan",options)("Found candidates:")+textColor("yellow",options)(directories.length));
+    console.log(textColor("cyan",options)("Found candidates: ")+textColor("yellowBright",options)(directories.length));
     printResultsDetails(directories, options);
     await checkDirs(directories, options);
 }
@@ -85,7 +85,7 @@ async function checkDirs(directories: DirectoryType[], options: OptionsType) {
 
     async function dirTask(i: number) {
         directories[i] = await checkDir(directories[i],options);
-        printResultsDetails(directories, options, directories[i], directories[i - 1]);
+        printResultsDetails(directories, options);
         totalChecked++;
     }
 
@@ -103,28 +103,28 @@ async function checkDirs(directories: DirectoryType[], options: OptionsType) {
         await task;
     }
 
-    console.log(`${textColor("cyan",options)('Synced repositories:')} ${textColor("yellow",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
+    console.log(`${textColor("cyan",options)('Synced repositories:')} ${textColor("yellowBright",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
        if(dir.clean && dir.synced) return prev+1;
        return prev;
     },0))}`);
 
-    console.log(`${textColor("cyan",options)('Unsynced repositories:')} ${textColor("yellow",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
+    console.log(`${textColor("cyan",options)('Unsynced repositories:')} ${textColor("yellowBright",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
         if(dir.clean && !dir.synced) return prev+1;
         return prev;
     },0))}`);
 
-    console.log(`${textColor("cyan",options)('Unclean repositories:')} ${textColor("yellow",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
+    console.log(`${textColor("cyan",options)('Unclean repositories:')} ${textColor("yellowBright",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
         if(!dir.clean && dir.isGit) return prev+1;
         return prev;
     },0))}`);
 
-    console.log(`${textColor("cyan",options)('Error repositories:')} ${textColor("yellow",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
+    console.log(`${textColor("cyan",options)('Error repositories:')} ${textColor("yellowBright",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
         if(!dir.error) return prev+1;
         return prev;
     },0))}`);
 
-    console.log(textColor("cyan",options)("Total checked: ") + textColor("yellow",options)(totalChecked));
-    console.log(textColor("cyan",options)("Time taken: ") + textColor("yellow",options)(((+new Date() - startTime) / 1000) + "s"));
+    console.log(textColor("cyan",options)("Total checked: ") + textColor("yellowBright",options)(totalChecked));
+    console.log(textColor("cyan",options)("Time taken: ") + textColor("yellowBright",options)(((+new Date() - startTime) / 1000) + "s"));
 }
 
 async function checkDir(dir: DirectoryType, options: OptionsType): Promise<DirectoryType> {
@@ -183,7 +183,7 @@ function readDirectories(options: OptionsType): DirectoryType[] {
     return _readDirectories(options.path, options.recursive ? options.maxDepth : 1);
 }
 
-function printResultsDetails(directories: DirectoryType[], options: OptionsType, checking?: DirectoryType, prev?: DirectoryType) {
+function printResultsDetails(directories: DirectoryType[], options: OptionsType) {
     directories.forEach(dir => {
         if (dir.checked && !dir.seen) {
             let repoTxt = formatRepo(dir,options);
@@ -222,7 +222,7 @@ function formatRepo(dir: DirectoryType,options:OptionsType){
             props.push({prop:"Synced",value:dir.synced});
         }
     }
-    let propsTxt = props.filter(el=>el.value !== undefined).map(el=>`${textColor("greenBright",options)(el.prop)}: ${textColor("magenta",options)(el.value)}`).join(" ");
+    let propsTxt = props.filter(el=>el.value !== undefined).map(el=>`${textColor("greenBright",options)(el.prop)}: ${textColor("magentaBright",options)(el.value)}`).join(" ");
 
     return `${base} - ${status}: ${propsTxt}`
 }
@@ -233,7 +233,7 @@ function getStatusColor(dir: DirectoryType,options:OptionsType) {
     if (dir.error) return textColor("red",options);
     if (dir.synced && dir.clean) return textColor("green",options);
     if (dir.clean) return textColor("cyan",options);
-    return textColor("yellow",options);
+    return textColor("yellowBright",options);
 }
 
 function getStatus(dir: DirectoryType) {
