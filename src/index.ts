@@ -3,10 +3,6 @@
 import simpleGit, {SimpleGit, SimpleGitOptions} from "simple-git";
 import * as fs from "fs";
 import clc from "cli-color";
-// @ts-ignore
-import Jetty from "jetty";
-
-const jetty = new Jetty(process.stdout);
 
 main();
 
