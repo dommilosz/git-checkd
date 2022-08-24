@@ -78,12 +78,12 @@ async function main() {
         console.log(textColor("yellowBright",options)("-a")+textColor("cyan",options)("   Show all repositories, even if clean and synced"));
         console.log(textColor("yellowBright",options)("-l")+textColor("cyan",options)("   Only list repositories don't fetch nor read status"));
         console.log(textColor("yellowBright",options)("-r")+textColor("cyan",options)("   Recursive (default depth: 4)"));
-        console.log(textColor("yellowBright",options)("-c")+textColor("cyan",options)("   Set recursive depth (default 4)"));
-        console.log(textColor("yellowBright",options)("-h")+textColor("cyan",options)("   Don't use colors"));
-        console.log(textColor("yellowBright",options)("--help")+textColor("cyan",options)("   Don't fetch, still uses git status."));
-        console.log(textColor("yellowBright",options)("--max-depth <depth>")+textColor("cyan",options)("   Set max concurrent tasks at once"));
-        console.log(textColor("yellowBright",options)("--no-color")+textColor("cyan",options)("   Shows this help"));
-        console.log(textColor("yellowBright",options)("--no-fetch")+textColor("cyan",options)("   Shows this help"));
+        console.log(textColor("yellowBright",options)("-c")+textColor("cyan",options)("   Set max concurrent tasks at once (default 4)"));
+        console.log(textColor("yellowBright",options)("-h")+textColor("cyan",options)("   Shows this help"));
+        console.log(textColor("yellowBright",options)("--help")+textColor("cyan",options)("   Shows this help"));
+        console.log(textColor("yellowBright",options)("--max-depth <depth>")+textColor("cyan",options)("   Set recursive depth (default 4)"));
+        console.log(textColor("yellowBright",options)("--no-color")+textColor("cyan",options)("   Don't use colors"));
+        console.log(textColor("yellowBright",options)("--no-fetch")+textColor("cyan",options)("   Don't fetch, still uses git status."));
         console.log(textColor("magentaBright",options)("==========================="));
         return;
     }
