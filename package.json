@@ -1,11 +1,11 @@
 {
   "name": "git-checkd",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Package for checking which of your code directories are in sync with remote git repository or have clean tree",
   "main": "bin/index.js",
   "scripts": {
     "start": "ts-node src/index.ts",
-    "publish": "tsc && npm publish"
+    "prepublishOnly": "tsc"
   },
   "files": [
     "bin/**/*"

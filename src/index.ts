@@ -103,23 +103,25 @@ async function checkDirs(directories: DirectoryType[], options: OptionsType) {
         await task;
     }
 
-    console.log(`${textColor("cyan",options)('Synced repositories:')} ${textColor("yellowBright",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
+    console.log();
+
+    console.log(`${textColor("cyan",options)('Synced repositories:')} ${textColor("yellowBright",options)(directories.reduce((prev,dir)=>{
        if(dir.clean && dir.synced) return prev+1;
        return prev;
     },0))}`);
 
-    console.log(`${textColor("cyan",options)('Unsynced repositories:')} ${textColor("yellowBright",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
-        if(dir.clean && !dir.synced) return prev+1;
+    console.log(`${textColor("cyan",options)('Unsynced repositories:')} ${textColor("yellowBright",options)(directories.reduce((prev,dir)=>{
+        if(!dir.synced) return prev+1;
         return prev;
     },0))}`);
 
-    console.log(`${textColor("cyan",options)('Unclean repositories:')} ${textColor("yellowBright",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
+    console.log(`${textColor("cyan",options)('Unclean repositories:')} ${textColor("yellowBright",options)(directories.reduce((prev,dir)=>{
         if(!dir.clean && dir.isGit) return prev+1;
         return prev;
     },0))}`);
 
-    console.log(`${textColor("cyan",options)('Error repositories:')} ${textColor("yellowBright",options)(directories.filter(dir=>dir.synced&&dir.clean).reduce((prev,dir)=>{
-        if(!dir.error) return prev+1;
+    console.log(`${textColor("cyan",options)('Error repositories:')} ${textColor("yellowBright",options)(directories.reduce((prev,dir)=>{
+        if(dir.error) return prev+1;
         return prev;
     },0))}`);
 
@@ -142,7 +144,7 @@ async function checkDir(dir: DirectoryType, options: OptionsType): Promise<Direc
             if (options.useGitStatus){
                 let statusResult = await git.status();
                 dir.clean = statusResult.isClean();
-                dir.synced = statusResult.ahead <= 0 || statusResult.behind <= 0;
+                dir.synced = statusResult.ahead <= 0 && statusResult.behind <= 0;
                 dir.behind = statusResult.behind;
                 dir.ahead = statusResult.ahead;
             }
