@@ -1,20 +1,22 @@
 {
   "name": "git-checkd",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "description": "Package for checking which of your code directories are in sync with remote git repository or have clean tree",
-  "main": "index.js",
+  "main": "bin/index.js",
   "scripts": {
     "start": "ts-node src/index.ts"
   },
   "files": [
-    "dist/**/*"
+    "bin/**/*"
   ],
+  "bin": {
+    "git-checkd": "bin/index.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "cli-color": "^2.0.3",
-    "jetty": "^0.2.1",
     "simple-git": "^3.13.0"
   },
   "devDependencies": {

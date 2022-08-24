@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import simpleGit, {SimpleGit, SimpleGitOptions} from "simple-git";
 import * as fs from "fs";
 import clc from "cli-color";
@@ -26,7 +28,7 @@ async function main() {
     let args = process.argv;
     let path = ".";
     let maxConcurrent = 16;
-    let onlyUnclean = false;
+    let onlyUnclean = true;
     if (args.indexOf("-p") >= 0) {
         path = args[args.indexOf("-p") + 1] ?? '.';
     }
@@ -34,8 +36,8 @@ async function main() {
         maxConcurrent = Number(args[args.indexOf("-p") + 1] ?? 16);
         if(!isFinite(maxConcurrent))maxConcurrent = 16;
     }
-    if (args.indexOf("-u") >= 0) {
-        onlyUnclean = true;
+    if (args.indexOf("-a") >= 0) {
+        onlyUnclean = false;
     }
 
     console.log(clc.cyan("Directories:"));
