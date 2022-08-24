@@ -72,6 +72,21 @@ async function main() {
         options.maxDepth = Number(args[args.indexOf("--max-depth") + 1] ?? 4);
         if (!isFinite(options.maxDepth)) options.maxDepth = 4;
     }
+    if (args.indexOf("-h") >= 0 || args.indexOf("--help") >= 0) {
+        console.log(textColor("magentaBright",options)("=====[git-checkd help]====="));
+        console.log(textColor("yellowBright",options)("-p")+textColor("cyan",options)("   Set path of search. Default '.'"));
+        console.log(textColor("yellowBright",options)("-a")+textColor("cyan",options)("   Show all repositories, even if clean and synced"));
+        console.log(textColor("yellowBright",options)("-l")+textColor("cyan",options)("   Only list repositories don't fetch nor read status"));
+        console.log(textColor("yellowBright",options)("-r")+textColor("cyan",options)("   Recursive (default depth: 4)"));
+        console.log(textColor("yellowBright",options)("-c")+textColor("cyan",options)("   Set recursive depth (default 4)"));
+        console.log(textColor("yellowBright",options)("-h")+textColor("cyan",options)("   Don't use colors"));
+        console.log(textColor("yellowBright",options)("--help")+textColor("cyan",options)("   Don't fetch, still uses git status."));
+        console.log(textColor("yellowBright",options)("--max-depth <depth>")+textColor("cyan",options)("   Set max concurrent tasks at once"));
+        console.log(textColor("yellowBright",options)("--no-color")+textColor("cyan",options)("   Shows this help"));
+        console.log(textColor("yellowBright",options)("--no-fetch")+textColor("cyan",options)("   Shows this help"));
+        console.log(textColor("magentaBright",options)("==========================="));
+        return;
+    }
 
     let directories = readDirectories(options);
     console.log(textColor("cyan",options)("Found candidates: ")+textColor("yellowBright",options)(directories.length));
