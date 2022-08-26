@@ -12,5 +12,4 @@ This package will check if the repository is synced with remote, has clean worki
  * `--max-depth <depth>` Set recursive depth (default 4)
  * `--no-color` Don't use colors
  * `--no-fetch` Don't fetch, still uses git status.
- * `-c <n>` Set max concurrent tasks at once
  * `-h` or `--help` Shows help menu

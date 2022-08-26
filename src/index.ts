@@ -5,7 +5,12 @@ import * as fs from "fs";
 import clc from "cli-color";
 import * as Path from "path";
 
-main();
+const gitOptions: Partial<SimpleGitOptions> = {
+    baseDir: '',
+    maxConcurrentProcesses: 16,
+    trimmed: false,
+};
+const git: SimpleGit = simpleGit(gitOptions);
 
 type DirectoryType = {
     name: string,
@@ -27,7 +32,6 @@ type OptionsType = {
     useGitFetch: boolean,
     useGitStatus: boolean,
     path: string,
-    maxConcurrent: number,
     recursive:boolean,
     maxDepth:number,
     noColor:boolean,
@@ -36,7 +40,6 @@ type OptionsType = {
 async function main() {
     let args = process.argv;
     let options: OptionsType = {
-        maxConcurrent: 4,
         path: ".",
         onlyUnclean: true,
         useGitFetch: true,
@@ -47,10 +50,6 @@ async function main() {
     };
     if (args.indexOf("-p") >= 0) {
         options.path = args[args.indexOf("-p") + 1] ?? '.';
-    }
-    if (args.indexOf("-c") >= 0) {
-        options.maxConcurrent = Number(args[args.indexOf("-p") + 1] ?? 4);
-        if (!isFinite(options.maxConcurrent)) options.maxConcurrent = 4;
     }
     if (args.indexOf("-a") >= 0) {
         options.onlyUnclean = false;
@@ -78,7 +77,6 @@ async function main() {
         console.log(textColor("yellowBright",options)("-a")+textColor("cyan",options)("   Show all repositories, even if clean and synced"));
         console.log(textColor("yellowBright",options)("-l")+textColor("cyan",options)("   Only list repositories don't fetch nor read status"));
         console.log(textColor("yellowBright",options)("-r")+textColor("cyan",options)("   Recursive (default depth: 4)"));
-        console.log(textColor("yellowBright",options)("-c")+textColor("cyan",options)("   Set max concurrent tasks at once (default 4)"));
         console.log(textColor("yellowBright",options)("-h")+textColor("cyan",options)("   Shows this help"));
         console.log(textColor("yellowBright",options)("--help")+textColor("cyan",options)("   Shows this help"));
         console.log(textColor("yellowBright",options)("--max-depth <depth>")+textColor("cyan",options)("   Set recursive depth (default 4)"));
@@ -98,46 +96,28 @@ async function checkDirs(directories: DirectoryType[], options: OptionsType) {
     let totalChecked = 0;
     let startTime = +new Date();
 
-    async function dirTask(i: number) {
+    for (let i = 0; i < directories.length; i++) {
         directories[i] = await checkDir(directories[i],options);
         printResultsDetails(directories, options);
         totalChecked++;
     }
 
-    let asyncTasks = [];
-    for (let i = 0; i < directories.length; i++) {
-        if (asyncTasks.length < (options.maxConcurrent)) {
-            asyncTasks.push(dirTask(i));
-        } else {
-            await asyncTasks.pop();
-            asyncTasks.push(dirTask(i));
-        }
-    }
-
-    for (const task of asyncTasks) {
-        await task;
-    }
-
     console.log();
 
     console.log(`${textColor("cyan",options)('Synced repositories:')} ${textColor("yellowBright",options)(directories.reduce((prev,dir)=>{
-       if(dir.clean && dir.synced) return prev+1;
-       return prev;
+        return dir.clean && dir.synced ? prev + 1 : prev;
     },0))}`);
 
     console.log(`${textColor("cyan",options)('Unsynced repositories:')} ${textColor("yellowBright",options)(directories.reduce((prev,dir)=>{
-        if(!dir.synced) return prev+1;
-        return prev;
+        return !dir.synced ? prev + 1 : prev;
     },0))}`);
 
     console.log(`${textColor("cyan",options)('Unclean repositories:')} ${textColor("yellowBright",options)(directories.reduce((prev,dir)=>{
-        if(!dir.clean && dir.isGit) return prev+1;
-        return prev;
+        return !dir.clean && dir.isGit ? prev + 1 : prev;
     },0))}`);
 
     console.log(`${textColor("cyan",options)('Error repositories:')} ${textColor("yellowBright",options)(directories.reduce((prev,dir)=>{
-        if(dir.error) return prev+1;
-        return prev;
+        return dir.error ? prev + 1 : prev;
     },0))}`);
 
     console.log(textColor("cyan",options)("Total checked: ") + textColor("yellowBright",options)(totalChecked));
@@ -145,13 +125,8 @@ async function checkDirs(directories: DirectoryType[], options: OptionsType) {
 }
 
 async function checkDir(dir: DirectoryType, options: OptionsType): Promise<DirectoryType> {
-    const gitOptions: Partial<SimpleGitOptions> = {
-        baseDir: dir.path,
-        maxConcurrentProcesses: 1,
-        trimmed: false,
-    };
     try {
-        const git: SimpleGit = simpleGit(gitOptions);
+        await git.cwd(dir.path);
         if (await git.checkIsRepo(CheckRepoActions.IS_REPO_ROOT)) {
             dir.isGit = true;
             if (options.useGitFetch)
@@ -268,3 +243,5 @@ function textColor(color:any,options:OptionsType){
     // @ts-ignore
     return clc[color];
 }
+
+main();
